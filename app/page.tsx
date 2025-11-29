@@ -1,9 +1,13 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ChevronDown, Search, Heart, MapPin, ArrowRight, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
 import { ChevronDown, Search, Heart, MapPin, Star, ArrowRight, CheckCircle2, Play, Calendar, FileText, Users, Gift, Coffee, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+type SpeechRecognition = any;
+type SpeechRecognitionEvent = any;
 
 // --- Brand Colors ---
 // Dark Green: bg-[#063324]
@@ -90,7 +94,395 @@ const PhoneMockup = ({ type = "dark", children }: { type?: "dark" | "light", chi
   </div>
 );
 
-const Hero = () => (
+type ChatBubble = { role: "bot" | "user"; text: string };
+
+const TTSConcierge = ({ autoStart = false }: { autoStart?: boolean }) => {
+  const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8001").replace(/\/$/, "");
+  const [started, setStarted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [playback, setPlayback] = useState<HTMLAudioElement | null>(null);
+  const [messages, setMessages] = useState<ChatBubble[]>([
+    { role: "bot", text: "Welcome to Housr! Tell me what you need and I'll speak back with next steps." },
+  ]);
+  const [askedCount, setAskedCount] = useState(0);
+  const [questionLimit, setQuestionLimit] = useState(5);
+  const [finished, setFinished] = useState(false);
+  const [recommendations, setRecommendations] = useState<{ title: string; price: string; summary: string }[]>([]);
+  const [lastBotText, setLastBotText] = useState("Welcome to Housr! Tell me what you need and I'll speak back with next steps.");
+  const [inputValue, setInputValue] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = React.useRef<SpeechRecognition | null>(null);
+  const processUserMessageRef = React.useRef<(text: string) => void>(() => {});
+  const sessionId = React.useMemo(() => `session_${Date.now()}`, []);
+  const agentId = process.env.NEXT_PUBLIC_ELEVEN_AGENT_ID || "agent_6301kb88z22ee3cr98333t8vyw7g";
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+
+  const followUps = [
+    "When do you need to move in?",
+    "What monthly budget works for you?",
+    "Do you prefer studio, en-suite, or shared?",
+    "Any must-haves like bills included or near campus?",
+    "Want me to line up a virtual tour or in-person viewing?",
+  ];
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recog = new SpeechRecognition();
+        recog.continuous = true;
+        recog.interimResults = false;
+        recog.lang = "en-US";
+        recog.onresult = (event: SpeechRecognitionEvent) => {
+          const lastResultIndex = event.results.length - 1;
+          const transcript = event.results[lastResultIndex][0].transcript;
+          setInputValue("");
+          processUserMessageRef.current(transcript);
+        };
+        recog.onend = () => {
+          if (isListening) {
+            recog.start();
+          }
+        };
+        recognitionRef.current = recog;
+      }
+    }
+  }, [isListening]);
+
+  useEffect(() => {
+    if (autoStart && !started) {
+      beginJourney();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, started]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const speak = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${backendUrl}/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: trimmed,
+          agent_id: agentId,
+          stream: false,
+          output_format: "mp3_44100_128",
+        }),
+      });
+
+      if (!res.ok) {
+        const message = await res.text();
+        throw new Error(message || `TTS request failed with status ${res.status}`);
+      }
+
+      const buffer = await res.arrayBuffer();
+      const contentType = res.headers.get("content-type") || "audio/mpeg";
+      const blob = new Blob([buffer], { type: contentType });
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+
+      if (playback) {
+        playback.pause();
+        playback.currentTime = 0;
+      }
+      const audio = new Audio(url);
+      setPlayback(audio);
+      await audio.play();
+    } catch (err: any) {
+      let errorMessage = err?.message || "Unable to generate speech";
+      if (err.name === "TypeError" && err.message.includes("fetch")) {
+        errorMessage = `Cannot connect to backend at ${backendUrl}. Make sure the backend server is running.`;
+      }
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const beginJourney = () => {
+    if (started) return;
+    setStarted(true);
+    setFinished(false);
+    const limit = Math.floor(Math.random() * 4) + 5; // 5-8 questions
+    setQuestionLimit(limit);
+    const prompt = "Tell me about the city, timing, budget, and anything you care about.";
+    setMessages((prev) => [...prev, { role: "bot", text: prompt }]);
+    setAskedCount(1);
+    speak(prompt);
+    setLastBotText(prompt);
+  };
+
+  const nextFollowUp = () => followUps[Math.floor(Math.random() * followUps.length)];
+
+  const buildSmartReply = (userText: string) => {
+    const lower = userText.toLowerCase();
+    const cityMatch = lower.match(/(?:in|at)\s+([a-z\s]+)/i);
+    const budgetMatch = userText.match(/([£$]\s?\d{3,4})/);
+    const wantsStudio = lower.includes("studio");
+    const wantsShared = lower.includes("shared");
+    const wantsEnsuite = lower.includes("en-suite") || lower.includes("ensuite");
+
+    const snippets = [];
+    if (cityMatch) snippets.push(`Noted city preference: ${cityMatch[1].trim()}.`);
+    if (budgetMatch) snippets.push(`Targeting options around ${budgetMatch[1]}.`);
+    if (wantsStudio) snippets.push("Studio-friendly picks added.");
+    if (wantsShared) snippets.push("Including calm shared houses.");
+    if (wantsEnsuite) snippets.push("Prioritizing en-suite rooms.");
+
+    const follow = nextFollowUp();
+    const base = snippets.length ? snippets.join(" ") : "Got it. I'll tailor options.";
+    return `${base} ${follow}`;
+  };
+
+  const processUserMessage = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
+    if (finished) return;
+
+    const totalAsked = askedCount;
+    if (totalAsked >= questionLimit) {
+      finalizeConversation(trimmed);
+      return;
+    }
+
+    const reply = buildSmartReply(trimmed);
+    setMessages((prev) => [...prev, { role: "bot", text: reply }]);
+    setLastBotText(reply);
+    setAskedCount((prev) => prev + 1);
+    speak(reply);
+  };
+  processUserMessageRef.current = processUserMessage;
+
+  const handleSend = () => {
+    if (!inputValue.trim()) return;
+    const current = inputValue;
+    setInputValue("");
+    processUserMessage(current);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const finalizeConversation = (lastAnswer: string) => {
+    const closing = "Thanks. I have enough to suggest some places. Want me to call a representative for you?";
+    const recs = [
+      { title: "City Centre En-Suite", price: "$820/mo", summary: "Bills included, 8 min walk to campus, quiet block." },
+      { title: "Shared House Near Uni", price: "$690/mo", summary: "3-bed shared, garden space, utilities capped." },
+      { title: "Modern Studio", price: "$940/mo", summary: "Gym onsite, furnished, flexible lease start." },
+    ];
+    setRecommendations(recs);
+    setMessages((prev) => [...prev, { role: "bot", text: closing }]);
+    setLastBotText(closing);
+    speak(closing);
+    setFinished(true);
+    logSession(recs, lastAnswer);
+  };
+
+  const logSession = async (recs: { title: string; price: string; summary: string }[], lastAnswer: string) => {
+    try {
+      await fetch(`${backendUrl}/session-log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          conversation: messages.concat([
+            { role: "user", text: lastAnswer },
+            { role: "bot", text: "Session ended with recommendations." },
+          ]),
+          recommendations: recs,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to log session", err);
+    }
+  };
+
+  const startListening = () => {
+    if (!recognitionRef.current || isListening) return;
+    setIsListening(true);
+    recognitionRef.current.start();
+  };
+
+  const stopListening = () => {
+    if (!recognitionRef.current) return;
+    setIsListening(false);
+    recognitionRef.current.stop();
+  };
+
+  return (
+    <section id="journey-chat" className="relative bg-gradient-to-b from-white via-[#F2F8F5] to-[#D2E6DE] py-24 px-6 overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute w-72 h-72 bg-white/40 blur-[120px] rounded-full -top-10 -left-10" />
+        <div className="absolute w-96 h-96 bg-[#D2E6DE]/60 blur-[140px] rounded-full bottom-0 right-0" />
+      </div>
+      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-12">
+          <div>
+            <p className="uppercase tracking-[0.3em] text-xs text-[#063324]/70 font-semibold mb-3">Housr voice concierge</p>
+            <h2 className="text-4xl md:text-5xl font-bold text-[#063324] leading-tight">Begin your journey</h2>
+            <p className="text-[#063324]/70 mt-3 text-lg max-w-xl">
+              Tap start, speak, and the bot will respond with follow-ups in real time—no preset questionnaire, just a flowing chat.
+            </p>
+          </div>
+          <div className="bg-white/70 backdrop-blur border border-[#063324]/10 rounded-2xl px-4 py-3 text-sm text-[#063324] shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#063324] text-white flex items-center justify-center font-bold">AI</div>
+            <div>
+              <div className="font-semibold">Live voice</div>
+              <div className="text-xs text-[#063324]/70">Powered by ElevenLabs</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="bg-white rounded-3xl p-8 shadow-xl border border-[#063324]/10 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#063324] text-white flex items-center justify-center font-bold">🎧</div>
+                <div>
+                  <div className="text-sm font-semibold text-[#063324]/70 uppercase tracking-[0.2em]">Voice chat</div>
+                  <div className="text-xl font-bold text-[#063324]">Talk to the bot</div>
+                </div>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-semibold ${isLoading ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>
+                {isLoading ? "Speaking..." : started ? (isListening ? "Mic live" : "Waiting for you") : "Ready"}
+              </div>
+            </div>
+
+              <div className="bg-gradient-to-r from-[#063324] to-[#0c4c37] text-white rounded-2xl p-5 flex flex-wrap gap-3 items-center justify-between shadow-lg shadow-[#063324]/20">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.3em] text-white/70">Status</div>
+                  <div className="font-semibold">{started ? (isListening ? "Listening..." : "Say something or type") : "Tap start to begin"}</div>
+                </div>
+                <div className="flex gap-3">
+                {!started && (
+                  <button
+                    onClick={beginJourney}
+                    className="px-4 py-2 rounded-full bg-white text-[#063324] font-bold hover:scale-105 transition"
+                  >
+                    Begin journey
+                  </button>
+                )}
+                <button
+                  onClick={isListening ? stopListening : startListening}
+                  disabled={!started}
+                  className={`px-4 py-2 rounded-full font-bold border border-white/50 ${isListening ? "bg-white/20 text-white" : "bg-white text-[#063324]"}`}
+                >
+                  {isListening ? "Stop listening" : "Speak"}
+                </button>
+              </div>
+            </div>
+
+            <div ref={scrollRef} className="space-y-4 max-h-[360px] overflow-y-auto pr-2 bg-[#F8FBF9] border border-[#063324]/10 rounded-2xl p-4">
+              {messages.map((m, idx) => (
+                <div key={idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`px-4 py-3 rounded-2xl max-w-[80%] text-sm leading-relaxed ${
+                      m.role === "user"
+                        ? "bg-[#063324] text-white rounded-br-none"
+                        : "bg-white text-[#063324] border border-[#063324]/10 rounded-bl-none"
+                    }`}
+                  >
+                    {m.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <input
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={!started || isLoading}
+                  placeholder={started ? "Type or dictate your answer" : "Tap start first"}
+                  className="flex-1 px-4 py-3 rounded-2xl border border-[#063324]/15 bg-white focus:outline-none focus:ring-2 focus:ring-[#063324]/30 disabled:bg-gray-100 disabled:text-gray-400"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!started || isLoading}
+                  className="px-4 py-3 rounded-2xl bg-[#063324] text-white font-semibold hover:translate-y-[-1px] transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+
+            {finished && recommendations.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <div className="text-sm font-semibold text-[#063324]/70 uppercase tracking-[0.2em]">Recommendations</div>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {recommendations.map((rec) => (
+                    <div key={rec.title} className="border border-[#063324]/10 rounded-2xl p-3 bg-white shadow-sm">
+                      <div className="font-bold text-[#063324]">{rec.title}</div>
+                      <div className="text-sm text-[#063324]/70">{rec.summary}</div>
+                      <div className="text-sm font-semibold text-[#063324] mt-1">{rec.price}</div>
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full bg-[#063324] text-white py-3 rounded-2xl font-bold hover:translate-y-[-1px] transition-transform">
+                  Call a representative
+                </button>
+              </div>
+            )}
+
+            {error && (
+              <div className="text-red-600 bg-red-50 border border-red-100 rounded-2xl p-3 text-sm">
+                {error}
+              </div>
+            )}
+
+            {audioUrl && (
+              <div className="flex items-center gap-3 bg-[#063324]/5 border border-[#063324]/10 rounded-2xl p-4">
+                <div className="w-10 h-10 rounded-full bg-[#063324] text-white flex items-center justify-center font-bold">▶</div>
+                <audio controls src={audioUrl} className="w-full" />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#063324]/10 space-y-3">
+              <div className="text-sm font-semibold text-[#063324]/70 uppercase tracking-[0.2em]">Helpful prompts</div>
+              <div className="text-sm text-[#063324]/80 space-y-2">
+                <p>“I need an en-suite near campus, budget $800.”</p>
+                <p>“Moving in next month, quiet area, bills included.”</p>
+                <p>“Studio preferred, but open to shared if close to uni.”</p>
+              </div>
+            </div>
+
+            <div className="bg-[#063324] text-white rounded-3xl p-6 shadow-md border border-[#063324]/20 space-y-3">
+              <div className="text-sm uppercase tracking-[0.2em] font-semibold text-white/70">How it works</div>
+              <ul className="space-y-2 text-base leading-relaxed text-white/90">
+                <li>1. Tap “Begin journey”, then press “Speak”.</li>
+                <li>2. Your voice is transcribed, sent, and echoed back with a follow-up.</li>
+                <li>3. Audio is generated via ElevenLabs using your API key/model.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const Hero = ({ onBeginJourney }: { onBeginJourney: () => void }) => (
   <header className="relative w-full min-h-screen pt-32 pb-20 bg-[#063324] text-white overflow-hidden flex flex-col items-center">
     <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center w-full">
       
@@ -103,10 +495,16 @@ const Hero = () => (
         <p className="text-xl text-gray-300 max-w-lg leading-relaxed">
           Find your next off-campus rental, find and fill a room, redeem student rewards and get more from student life.
         </p>
-        
         <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <button className="bg-[#D2E6DE] text-[#063324] px-8 py-4 rounded-full font-bold text-lg hover:bg-white transition-colors">
                 Download the app
+            </button>
+            <button
+              onClick={onBeginJourney}
+              className="bg-white/15 backdrop-blur text-white px-8 py-4 rounded-full font-bold text-lg border border-white/30 hover:bg-white/25 transition-colors flex items-center gap-2"
+            >
+              Begin your journey
+              <ArrowRight size={18} />
             </button>
         </div>
 
@@ -383,6 +781,7 @@ const Testimonials = () => (
                     { name: "Alice Carter", color: "bg-green-100 text-green-600", emoji: "🤑", text: "Great company. Always happy to assist and deliver a brilliant service. Really good perks too!" },
                 ].map((t, idx) => (
                     <div key={idx} className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl transition-shadow flex flex-col justify-between h-80">
+                        <p className="text-gray-600 leading-relaxed text-lg">&ldquo;{t.text}&rdquo;</p>
                         <p className="text-gray-600 leading-relaxed text-lg">&quot;{t.text}&quot;</p>
                         <div className="flex items-center gap-4">
                             <div className={`w-12 h-12 rounded-full ${t.color} flex items-center justify-center text-2xl`}>
@@ -445,10 +844,21 @@ const Footer = () => (
 );
 
 export default function LandingPage() {
+  const [journeyAutoStart, setJourneyAutoStart] = useState(false);
+
+  const handleBeginJourney = () => {
+    setJourneyAutoStart(true);
+    requestAnimationFrame(() => {
+      const target = document.getElementById("journey-chat");
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   return (
     <main className="min-h-screen bg-white font-sans selection:bg-[#063324] selection:text-white">
       <Navbar />
-      <Hero />
+      <Hero onBeginJourney={handleBeginJourney} />
+      <TTSConcierge autoStart={journeyAutoStart} />
       <FeaturesSection />
       <Testimonials />
       <Footer />

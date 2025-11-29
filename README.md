@@ -145,6 +145,19 @@ npm run start    # Start production server
 npm run lint     # Run ESLint
 ```
 
+## 🔊 Backend (ElevenLabs TTS)
+
+- Copy `backend/.env.example` to `backend/.env` and paste your ElevenLabs key as `ELEVEN_API_KEY` (the server also falls back to `backend/venv/.env` if you already stored it there).
+- If you only have `ELEVENLABS_API_KEY` set, it will be picked up automatically and mapped to `ELEVEN_API_KEY`.
+- Start the FastAPI server from the repo root:
+  - `source backend/venv/bin/activate`
+  - `uvicorn backend.main:app --reload --port 8001`
+- Test locally: `curl -X POST http://localhost:8001/tts -H "Content-Type: application/json" -d '{"text":"Hello from Realty Voice"}' --output sample.mp3`
+- Health check: `curl http://localhost:8001/health` (returns `has_elevenlabs_key: true` when the key is loaded).
+- Frontend expects `NEXT_PUBLIC_BACKEND_URL` (e.g., `http://localhost:8001`) to call `/tts`. To relax CORS for other origins, set `CORS_ALLOW_ORIGINS` (comma-separated) in `backend/.env`.
+- Frontend local env sample: copy `.env.local.example` to `.env.local` and adjust the backend URL.
+- To use a specific ElevenLabs Agent, set `ELEVEN_AGENT_ID` (backend) and `NEXT_PUBLIC_ELEVEN_AGENT_ID` (frontend). Default agent used: `agent_6301kb88z22ee3cr98333t8vyw7g`.
+
 ## 🤝 Contributing
 
 This is a hackathon project demonstrating the frontend architecture and UX for Housr's AI-powered platform.
@@ -156,4 +169,3 @@ Proprietary - Created for Housr Hackathon
 ---
 
 **Built with ❤️ for Housr - Reimagining Student Living**
-
