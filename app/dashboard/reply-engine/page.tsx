@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { 
   Sparkles, 
   Copy, 
@@ -424,7 +425,7 @@ export default function ReplyEngine() {
                 {matchedProperties.map((prop) => (
                   <div key={prop.code} className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm min-w-[240px] flex gap-3 items-center">
                     <div className="w-16 h-16 rounded-xl bg-gray-200 overflow-hidden shrink-0 relative">
-                        <img src={prop.image} className="w-full h-full object-cover" alt={prop.title} />
+                        <Image src={prop.image || ""} width={64} height={64} className="w-full h-full object-cover" alt={prop.title} />
                     </div>
                     <div>
                         <h4 className="text-sm font-bold text-[#063324] line-clamp-1">{prop.title}</h4>

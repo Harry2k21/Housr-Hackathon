@@ -198,7 +198,7 @@ P.S. I've also attached a quick voice message with more details!`
       const url = URL.createObjectURL(blob);
 
       // Update the reply with the voice URL
-      setGeneratedReply(prev => ({
+      setGeneratedReply((prev: any) => ({
         ...prev,
         voice_url: url
       }));

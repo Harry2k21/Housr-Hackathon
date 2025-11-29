@@ -1,14 +1,11 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
-// Fail loudly if API key is missing
-if (!process.env.ELEVENLABS_API_KEY) {
-  throw new Error("ELEVENLABS_API_KEY is not set");
-}
-
-// Initialize ElevenLabs client
-export const eleven = new ElevenLabsClient({
-  apiKey: process.env.ELEVENLABS_API_KEY!,
-});
+// Initialize ElevenLabs client only when needed
+export const eleven = process.env.ELEVENLABS_API_KEY 
+  ? new ElevenLabsClient({
+      apiKey: process.env.ELEVENLABS_API_KEY,
+    })
+  : null;
 
 // Default voice ID for Housr voice replies
 // You can find voice IDs in your ElevenLabs dashboard
@@ -26,6 +23,11 @@ export async function transcribeCall(
   language_probability: number;
   words?: any[];
 }> {
+  // Fail at runtime if API key is missing
+  if (!process.env.ELEVENLABS_API_KEY) {
+    throw new Error("ELEVENLABS_API_KEY is not set");
+  }
+
   try {
     // Use node-fetch compatible FormData for server-side
     const { FormData } = await import('formdata-node');
@@ -81,6 +83,11 @@ export async function generateVoiceReply(
   text: string,
   voiceId: string = ELEVENLABS_DEFAULT_VOICE_ID
 ): Promise<Buffer> {
+  // Fail at runtime if API key is missing
+  if (!process.env.ELEVENLABS_API_KEY) {
+    throw new Error("ELEVENLABS_API_KEY is not set");
+  }
+
   try {
     console.log('Generating voice reply:', {
       textLength: text.length,
