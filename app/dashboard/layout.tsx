@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Phone, MessageSquare, Mic, BarChart3, LogOut, LayoutDashboard, Zap } from 'lucide-react';
+import { Phone, MessageSquare, Mic, BarChart3, LogOut, LayoutDashboard, Zap, UserCircle } from 'lucide-react';
 import { UserButton } from "@clerk/nextjs";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -28,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <NavItem href="/dashboard/call-hub" icon={<Phone size={20} />} label="Call Intelligence" />
           <NavItem href="/dashboard/reply-engine" icon={<MessageSquare size={20} />} label="Match Engine" />
           <NavItem href="/dashboard/voice-coach" icon={<Mic size={20} />} label="Voice Coach" />
+          <NavItem href="/dashboard/student-summary" icon={<UserCircle size={20} />} label="Student Summary" />
           
         </nav>
 

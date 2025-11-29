@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
-import { Upload, Play, Pause, CheckCircle, AlertTriangle, Mail, Volume2, Download, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import { Upload, Play, Pause, CheckCircle, AlertTriangle, Mail, Volume2, Download, RotateCcw, ArrowLeft, RefreshCw } from 'lucide-react';
 
 // Sample call data
 const SAMPLE_CALLS = [
@@ -55,29 +56,49 @@ export default function CallCopilot() {
   const [riskAnalysis, setRiskAnalysis] = useState<any>(null);
   const [generatedReply, setGeneratedReply] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const [isGeneratingReply, setIsGeneratingReply] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const handleCallSelect = (call: any) => {
     setSelectedCall(call);
     setCurrentStep(2);
   };
 
-  const handleTranscribe = () => {
+  const handleTranscribe = async () => {
+    if (!selectedCall) return;
+    
     setIsTranscribing(true);
-    setTimeout(() => {
-      setTranscriptData({
-        transcript: "Hi, I'm looking for a room near Manchester University. My budget is around £160 per week, and I need to move in by September. I'm a bit worried about safety in the area - are there any security measures? Also, I want to make sure all bills are included because I don't want any surprises.",
-        language: "English (UK)",
-        confidence: 0.94,
-        extracted_info: {
-          budget: "£160/week",
-          location: "Manchester University area",
-          move_in_date: "September",
-          key_concerns: ["Safety/security", "Bills included", "No hidden costs"]
-        }
+    
+    try {
+      const response = await fetch('/api/call-copilot/transcribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ callId: selectedCall.id }),
       });
-      setIsTranscribing(false);
+
+      if (!response.ok) {
+        throw new Error(`Transcription failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      setTranscriptData({
+        transcript: data.transcript,
+        language: data.language,
+        confidence: data.confidence,
+        extracted_info: data.extracted_info
+      });
       setCurrentStep(3);
-    }, 2500);
+      
+    } catch (error) {
+      console.error('Transcription error:', error);
+      alert('Transcription failed. Please try another call or check your internet connection.');
+    } finally {
+      setIsTranscribing(false);
+    }
   };
 
   const handleRiskCheck = () => {
@@ -96,16 +117,20 @@ export default function CallCopilot() {
     }, 1500);
   };
 
-  const handleGenerateReply = () => {
-    setTimeout(() => {
-      setGeneratedReply({
-        email: {
-          subject: "Perfect rooms near Manchester University - £160/week range",
-          body: `Hi there!
+  const handleGenerateReply = async () => {
+    if (!transcriptData) return;
+    
+    setIsGeneratingReply(true);
+    
+    try {
+      // Generate email content (keeping existing logic)
+      const emailContent = {
+        subject: `Perfect rooms near ${transcriptData.extracted_info.location} - ${transcriptData.extracted_info.budget} range`,
+        body: `Hi there!
 
-Thanks for your call today - I'm excited to help you find your perfect student home near Manchester University!
+Thanks for your call today - I'm excited to help you find your perfect student home near ${transcriptData.extracted_info.location}!
 
-Based on what you mentioned (£160/week budget, September move-in, focus on safety and bills included), I've found two great options:
+Based on what you mentioned (${transcriptData.extracted_info.budget} budget, ${transcriptData.extracted_info.move_in_date} move-in, focus on ${transcriptData.extracted_info.key_concerns.join(' and ')}), I've found two great options:
 
 🏠 **The Quad Manchester** - £165/week
 • 5-minute walk to campus
@@ -125,11 +150,65 @@ Best regards,
 The Housr Team
 
 P.S. I've also attached a quick voice message with more details!`
-        },
-        voice_note_text: "Hi! Just wanted to personally follow up on our chat. I found those two perfect properties for you - The Quad is super close to campus with great security, and Student Village has amazing facilities. Both are in your budget with bills included. Let me know if you'd like to see them this week!",
-        properties: MOCK_PROPERTIES
+      };
+
+      // Generate voice note text
+      const voiceNoteText = `Hi! Just wanted to personally follow up on our chat. I found those two perfect properties for you - The Quad is super close to campus with great security, and Student Village has amazing facilities. Both are in your budget with bills included. Let me know if you'd like to see them this week!`;
+
+      setGeneratedReply({
+        email: emailContent,
+        voice_note_text: voiceNoteText,
+        properties: MOCK_PROPERTIES,
+        voice_url: null // Will be generated when user clicks play
       });
-    }, 2000);
+      
+      setCurrentStep(4);
+      
+    } catch (error) {
+      console.error('Reply generation error:', error);
+      alert('Failed to generate reply. Please try again.');
+    } finally {
+      setIsGeneratingReply(false);
+    }
+  };
+
+  const handleGenerateVoice = async () => {
+    if (!generatedReply?.voice_note_text) return;
+    
+    setIsGeneratingVoice(true);
+    setVoiceError(null);
+    
+    try {
+      const response = await fetch('/api/call-copilot/generate-voice-reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: generatedReply.voice_note_text }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Voice generation failed' }));
+        throw new Error(errorData.error || 'Voice generation failed');
+      }
+
+      // Convert response to blob and create object URL
+      const arrayBuffer = await response.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+
+      // Update the reply with the voice URL
+      setGeneratedReply((prev: any) => ({
+        ...prev,
+        voice_url: url
+      }));
+
+    } catch (error) {
+      console.error('Voice generation error:', error);
+      setVoiceError(error instanceof Error ? error.message : 'Voice generation failed');
+    } finally {
+      setIsGeneratingVoice(false);
+    }
   };
 
   const resetWorkflow = () => {
@@ -138,11 +217,21 @@ P.S. I've also attached a quick voice message with more details!`
     setTranscriptData(null);
     setRiskAnalysis(null);
     setGeneratedReply(null);
+    setVoiceError(null);
   };
 
   return (
     <div className="max-w-6xl mx-auto">
       <header className="mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <Link 
+            href="/dashboard"
+            className="flex items-center gap-2 px-4 py-2 text-[#063324] border border-[#063324] rounded-full hover:bg-[#063324] hover:text-white transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back to Dashboard
+          </Link>
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-[#063324] mb-2">Call → Insight → Reply Copilot</h1>
@@ -200,7 +289,7 @@ P.S. I've also attached a quick voice message with more details!`
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h3 className="font-bold text-[#063324] group-hover:text-[#154D38] mb-2">{call.title}</h3>
-                    <p className="text-gray-600 text-sm mb-2">"{call.preview}"</p>
+                    <p className="text-gray-600 text-sm mb-2">&quot;{call.preview}&quot;</p>
                     <div className="flex gap-4 text-xs text-gray-400">
                       <span>Duration: {call.duration}</span>
                       <span>Language: {call.language}</span>
@@ -398,21 +487,58 @@ P.S. I've also attached a quick voice message with more details!`
             <h2 className="text-2xl font-bold mb-6">AI Voice Note (ElevenLabs)</h2>
             
             <div className="bg-white/10 rounded-2xl p-6 mb-6">
-              <p className="text-white/90 leading-relaxed">"{generatedReply.voice_note_text}"</p>
+              <p className="text-white/90 leading-relaxed">&quot;{generatedReply.voice_note_text}&quot;</p>
             </div>
 
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="w-16 h-16 rounded-full bg-white text-[#063324] flex items-center justify-center hover:bg-gray-100 transition"
-              >
-                {isPlaying ? <Pause size={24} /> : <Play size={24} />}
-              </button>
-              <div className="flex-1 bg-white/20 rounded-full h-2">
-                <div className="bg-white rounded-full h-2 w-1/3"></div>
+            {voiceError && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 mb-4">
+                <p className="text-red-200 text-sm">{voiceError}</p>
               </div>
-              <Volume2 size={20} className="text-white/60" />
-            </div>
+            )}
+
+            {!generatedReply.voice_url ? (
+              <div className="text-center">
+                <button 
+                  onClick={handleGenerateVoice}
+                  disabled={isGeneratingVoice}
+                  className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-full font-bold transition-all flex items-center gap-3 mx-auto disabled:opacity-50"
+                >
+                  {isGeneratingVoice ? (
+                    <>
+                      <RefreshCw className="animate-spin" size={20} />
+                      Generating Voice...
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 size={20} />
+                      Generate Voice Note
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <audio 
+                  controls 
+                  src={generatedReply.voice_url}
+                  className="w-full bg-white/10 rounded-xl"
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
+                >
+                  Your browser does not support the audio element.
+                </audio>
+                <div className="flex items-center gap-4 text-sm text-white/70">
+                  <span>✅ Generated with ElevenLabs TTS</span>
+                  <button 
+                    onClick={handleGenerateVoice}
+                    className="text-white/90 hover:text-white underline"
+                  >
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Recommended Properties */}
