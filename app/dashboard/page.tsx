@@ -1,90 +1,118 @@
-import React from 'react';
-import Link from 'next/link';
-import { Phone, MessageSquare, Mic, ArrowRight, Zap } from 'lucide-react';
+"use client";
+
+import Link from "next/link";
+import { Sparkles, Mic2, ListTree, Users } from "lucide-react";
 
 export default function DashboardOverview() {
   return (
-    <div className="max-w-5xl mx-auto">
-      <header className="mb-10">
-        <h1 className="text-4xl font-bold text-[#063324] mb-2">Welcome to Housr Intelligence Hub</h1>
-        <p className="text-gray-500 text-lg">Your AI-powered admin panel for managing student housing operations.</p>
+    <div className="max-w-6xl mx-auto">
+      <header className="mb-8">
+        <h1 className="text-4xl font-bold text-[#063324] mb-2">
+          Housr AI Hub
+        </h1>
+        <p className="text-gray-500 text-sm">
+          Jump into the tools your team uses every day – reply engine, voice
+          coach, student summary, and lead timeline.
+        </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-        <FeatureCard
-          href="/dashboard/call-copilot"
-          icon={<Zap size={24} />}
-          title="Call → Insight → Reply Copilot"
-          description="Transform calls into smart summaries and personalized replies."
-          color="bg-yellow-50 text-yellow-600"
-          featured={true}
-        />
-
-        <FeatureCard
-          href="/dashboard/call-hub"
-          icon={<Phone size={24} />}
-          title="Call Intelligence Hub"
-          description="Analyze customer calls for sentiment and trends."
-          color="bg-blue-50 text-blue-600"
-        />
-
-        <FeatureCard
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {/* Reply engine */}
+        <Link
           href="/dashboard/reply-engine"
-          icon={<MessageSquare size={24} />}
-          title="Housing Match AI"
-          description="Generate AI-powered email replies for student inquiries."
-          color="bg-green-50 text-green-600"
-        />
+          className="group bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-[#063324]/20 transition flex flex-col justify-between"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-9 w-9 rounded-2xl bg-[#063324] text-white flex items-center justify-center">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[#063324]">
+                Reply engine (email + voice)
+              </h2>
+              <p className="text-xs text-gray-500">
+                Turn messy inquiries into on-brand housing recommendation emails.
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Paste student messages, generate replies, and create WhatsApp-ready
+            voice notes.
+          </p>
+        </Link>
 
-        <FeatureCard
+        {/* Voice coach */}
+        <Link
           href="/dashboard/voice-coach"
-          icon={<Mic size={24} />}
-          title="HR Voice Coach"
-          description="Real-time voice training for HR staff."
-          color="bg-purple-50 text-purple-600"
-        />
-      </div>
+          className="group bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-[#063324]/20 transition flex flex-col justify-between"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-9 w-9 rounded-2xl bg-[#F0F7F4] text-[#063324] flex items-center justify-center">
+              <Mic2 size={18} />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[#063324]">Voice coach</h2>
+              <p className="text-xs text-gray-500">
+                Practice scripts and tone of voice for calls and WhatsApp chats.
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Use this to train new staff on how Housr sounds before they speak to
+            real students.
+          </p>
+        </Link>
 
-      {/* Quick Stats */}
-      <div className="mt-12 bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-        <h2 className="text-2xl font-bold text-[#063324] mb-6">Today&apos;s Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-[#063324] mb-1">127</div>
-            <div className="text-sm text-gray-500">Calls Analyzed</div>
+        {/* Lead timeline – placed after Voice coach (i.e. below it in order) */}
+        <Link
+          href="/dashboard/lead-timeline"
+          className="group bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-[#063324]/20 transition flex flex-col justify-between"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-9 w-9 rounded-2xl bg-[#E3EFE9] text-[#063324] flex items-center justify-center">
+              <ListTree size={18} />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[#063324]">
+                Lead timeline (interaction history)
+              </h2>
+              <p className="text-xs text-gray-500">
+                See a simple chronological log of everything that’s happened
+                with a student.
+              </p>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-[#063324] mb-1">89</div>
-            <div className="text-sm text-gray-500">AI Replies Generated</div>
+          <p className="text-xs text-gray-400 mt-2">
+            Great for handovers and when leads bounce between team members. Add
+            notes for calls, viewings, and decisions.
+          </p>
+        </Link>
+
+        {/* Student summary page */}
+        <Link
+          href="/dashboard/student-summary"
+          className="group bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-[#063324]/20 transition flex flex-col justify-between"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-9 w-9 rounded-2xl bg-[#F5F1FF] text-[#063324] flex items-center justify-center">
+              <Users size={18} />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[#063324]">
+                Student summary & reply
+              </h2>
+              <p className="text-xs text-gray-500">
+                Compact profile card + AI reply builder + voice note in one
+                place.
+              </p>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-[#063324] mb-1">24</div>
-            <div className="text-sm text-gray-500">Voice Training Sessions</div>
-          </div>
-        </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Fill in budget, areas and vibe, then generate emails that are
+            personalised but consistent.
+          </p>
+        </Link>
       </div>
     </div>
   );
 }
-
-const FeatureCard = ({ href, icon, title, description, color, featured }: any) => (
-  <Link href={href}>
-    <div className={`bg-white p-8 rounded-[2rem] border shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer h-full flex flex-col ${
-      featured ? 'border-yellow-200 ring-2 ring-yellow-100' : 'border-gray-100'
-    }`}>
-      {featured && (
-        <div className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full w-fit mb-4">
-          ⚡ NEW MVP
-        </div>
-      )}
-      <div className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-        {icon}
-      </div>
-      <h3 className="text-xl font-bold mb-3 text-[#063324]">{title}</h3>
-      <p className="text-gray-500 mb-6 flex-1">{description}</p>
-      <div className="flex items-center gap-2 text-[#063324] font-semibold group-hover:gap-4 transition-all">
-        View Details <ArrowRight size={18} />
-      </div>
-    </div>
-  </Link>
-);
