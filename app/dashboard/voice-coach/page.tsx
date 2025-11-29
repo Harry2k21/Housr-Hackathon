@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Mic, Square, TrendingUp, Heart, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { Mic, Square, TrendingUp, Heart, Zap, ArrowLeft } from 'lucide-react';
 
 export default function VoiceCoach() {
   const [isRecording, setIsRecording] = useState(false);
@@ -24,6 +25,15 @@ export default function VoiceCoach() {
   return (
     <div className="max-w-4xl mx-auto text-center">
       <header className="mb-10">
+        <div className="flex items-center justify-center gap-4 mb-6">
+          <Link 
+            href="/dashboard"
+            className="flex items-center gap-2 px-4 py-2 text-[#063324] border border-[#063324] rounded-full hover:bg-[#063324] hover:text-white transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back to Dashboard
+          </Link>
+        </div>
         <h1 className="text-4xl font-bold text-[#063324] mb-2">HR Voice Training Coach</h1>
         <p className="text-gray-500">Real-time feedback on tone, empathy, and clarity during roleplay.</p>
       </header>

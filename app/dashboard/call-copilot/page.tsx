@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
-import { Upload, Play, Pause, CheckCircle, AlertTriangle, Mail, Volume2, Download, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import { Upload, Play, Pause, CheckCircle, AlertTriangle, Mail, Volume2, Download, RotateCcw, ArrowLeft } from 'lucide-react';
 
 // Sample call data
 const SAMPLE_CALLS = [
@@ -143,6 +144,15 @@ P.S. I've also attached a quick voice message with more details!`
   return (
     <div className="max-w-6xl mx-auto">
       <header className="mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <Link 
+            href="/dashboard"
+            className="flex items-center gap-2 px-4 py-2 text-[#063324] border border-[#063324] rounded-full hover:bg-[#063324] hover:text-white transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back to Dashboard
+          </Link>
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-[#063324] mb-2">Call → Insight → Reply Copilot</h1>
