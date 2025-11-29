@@ -200,7 +200,7 @@ P.S. I've also attached a quick voice message with more details!`
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h3 className="font-bold text-[#063324] group-hover:text-[#154D38] mb-2">{call.title}</h3>
-                    <p className="text-gray-600 text-sm mb-2">"{call.preview}"</p>
+                    <p className="text-gray-600 text-sm mb-2">&quot;{call.preview}&quot;</p>
                     <div className="flex gap-4 text-xs text-gray-400">
                       <span>Duration: {call.duration}</span>
                       <span>Language: {call.language}</span>
@@ -398,7 +398,7 @@ P.S. I've also attached a quick voice message with more details!`
             <h2 className="text-2xl font-bold mb-6">AI Voice Note (ElevenLabs)</h2>
             
             <div className="bg-white/10 rounded-2xl p-6 mb-6">
-              <p className="text-white/90 leading-relaxed">"{generatedReply.voice_note_text}"</p>
+              <p className="text-white/90 leading-relaxed">&quot;{generatedReply.voice_note_text}&quot;</p>
             </div>
 
             <div className="flex items-center gap-4">
