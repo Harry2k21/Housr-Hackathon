@@ -1,6 +1,12 @@
 # Housr Platform - Student Living Reimagined
 
 A comprehensive Next.js platform featuring a public-facing student housing website and an AI-powered admin dashboard with three intelligent features.
+![alt text](housr-dash.gif)
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
+![alt text](image-4.png)
 
 ## 🏗️ Project Structure
 
